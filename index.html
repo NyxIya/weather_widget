@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Widget</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>🌦️ Weather Widget</h1>
+  <p class="subtitle">
+    Real-time weather information for major cities around the world with beautiful visualizations and interactive elements.
+  </p>
+
+  <form id="searchForm">
+    <input type="text" id="cityInput" placeholder="Search for a city..." required>
+    <button type="submit">🔍 Search</button>
+  </form>
+
+  <div class="buttons">
+    <button id="clearBtn" class="refresh">🔄 Clear All</button>
+    <button id="themeBtn" class="theme">🎨 Change Theme</button>
+  </div>
+
+  <div id="cardsContainer"></div>
+</div>
+
+<script>
+const apiKey = "227dbf38a8d70df77960aa936fc7b35f";
+const apiUrl = "https://api.openweathermap.org/data/2.5/weather";
+let cities = JSON.parse(localStorage.getItem('cities') || '[]');
+
+const cardsContainer = document.getElementById('cardsContainer');
+const cityInput = document.getElementById('cityInput');
+const searchForm = document.getElementById('searchForm');
+const clearBtn = document.getElementById('clearBtn');
+const themeBtn = document.getElementById('themeBtn');
+
+// Render all saved cities
+function renderCities() {
+  cardsContainer.innerHTML = '';
+  cities.forEach(city => fetchWeather(city));
+  localStorage.setItem('cities', JSON.stringify(cities));
+}
+
+// Fetch weather from OpenWeatherMap
+async function fetchWeather(city) {
+  try {
+    const res = await fetch(`${apiUrl}?q=${city}&appid=${apiKey}&units=metric`);
+    const data = await res.json();
+    if (data.cod !== 200) throw new Error(data.message);
+
+    // Real local time of the city
+    const timezoneOffset = data.timezone; // in seconds
+    const localTime = new Date((Date.now() + timezoneOffset * 1000 - new Date().getTimezoneOffset() * 60000));
+    const date = localTime.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    });
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <button class="remove-btn">❌</button>
+      <h2>📍 ${data.name}, ${data.sys.country}</h2>
+      <p>${date}</p>
+      <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" alt="icon">
+      <h3>${data.main.temp}°C</h3>
+      <p>${data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1)}</p>
+      <p>💧 Humidity: ${data.main.humidity}%</p>
+      <p>🌬️ Wind: ${data.wind.speed} m/s</p>
+    `;
+    const removeBtn = card.querySelector('.remove-btn');
+    removeBtn.addEventListener('click', () => {
+      cities = cities.filter(c => c !== data.name);
+      renderCities();
+    });
+    cardsContainer.appendChild(card);
+  } catch (err) {
+    const errorCard = document.createElement('p');
+    errorCard.className = 'error';
+    errorCard.textContent = `❌ City not found: ${city}`;
+    cardsContainer.appendChild(errorCard);
+  }
+}
+
+// Form submit
+searchForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const newCity = cityInput.value.trim();
+  if (newCity && !cities.includes(newCity)) {
+    cities.push(newCity);
+    renderCities();
+  }
+  cityInput.value = '';
+});
+
+// Clear all cities
+clearBtn.addEventListener('click', () => {
+  cities = [];
+  renderCities();
+});
+
+// Toggle dark theme
+themeBtn.addEventListener('click', () => {
+  document.body.classList.toggle('dark');
+});
+
+// Initial render
+renderCities();
+</script>
+</body>
+</html>
